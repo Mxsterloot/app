@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   app:
     build:
@@ -16,6 +14,8 @@ services:
     depends_on:
       - db
     restart: unless-stopped
+    networks:
+      - clean-elysia-starter
 
   db:
     image: postgres:16-alpine
@@ -28,6 +28,28 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
+    networks:
+      - clean-elysia-starter
+
+  pgadmin:
+    image: dpage/pgadmin4
+    ports:
+      - "5050:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=pgadmin@pgadmin.org
+      - PGADMIN_DEFAULT_PASSWORD=pgadmin
+    volumes:
+      - pgadmin_data:/pgadmin/servers.json
+    depends_on:
+      - db
+    restart: unless-stopped
+    networks:
+      - clean-elysia-starter
+
+networks:
+  clean-elysia-starter:
+    name: clean-elysia-starter
 
 volumes:
   postgres_data:
+  pgadmin_data:
