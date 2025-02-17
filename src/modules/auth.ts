@@ -1,7 +1,9 @@
-// src/modules/authen.ts
+// src/modules/auth.ts
 import { Elysia, t } from 'elysia'
-import { supabase } from '../utils/supabase'
-import { SignUpWithPasswordCredentials, SignInWithPasswordCredentials } from '@supabase/supabase-js'
+import { PrismaClient } from '@prisma/client'
+import * as bcrypt from 'bcrypt'
+
+const prisma = new PrismaClient()
 
 /**
  * @description Authentication module
@@ -24,10 +26,21 @@ export const auth = (app: Elysia) =>
             .post(
                 '/sign-up',
                 async ({ body }) => {
-                    const { data, error } = await supabase.auth.signUp(body as SignUpWithPasswordCredentials)
-
-                    if (error) return error
-                    return data.user
+                    try {
+                        const hashedPassword = await bcrypt.hash(body.password, 10)
+                        const user = await prisma.user.create({
+                            data: {
+                                email: body.email,
+                                password: hashedPassword,
+                                name: body.email.split('@')[0] // Default name from email
+                            }
+                        })
+                        
+                        const { password, ...userWithoutPassword } = user
+                        return userWithoutPassword
+                    } catch (error) {
+                        return { error: 'User creation failed' }
+                    }
                 },
                 {
                     schema: {
@@ -37,13 +50,33 @@ export const auth = (app: Elysia) =>
             )
             .post(
                 '/sign-in',
-                async ({ body }) => {
-                    const { data, error } =
-                        await supabase.auth.signInWithPassword(body as SignInWithPasswordCredentials)
+                async ({ body, jwt }) => {
+                    try {
+                        const user = await prisma.user.findUnique({
+                            where: {
+                                email: body.email
+                            }
+                        })
 
-                    if (error) return error
+                        if (!user) {
+                            return { error: 'User not found' }
+                        }
 
-                    return data.user
+                        const validPassword = await bcrypt.compare(body.password, user.password)
+                        if (!validPassword) {
+                            return { error: 'Invalid password' }
+                        }
+
+                        const { password, ...userWithoutPassword } = user
+                        const token = await jwt.sign(userWithoutPassword)
+                        
+                        return { 
+                            user: userWithoutPassword,
+                            token
+                        }
+                    } catch (error) {
+                        return { error: 'Authentication failed' }
+                    }
                 },
                 {
                     schema: {
@@ -52,17 +85,33 @@ export const auth = (app: Elysia) =>
                 }
             )
             .get(
-                '/refresh',
-                async ({ set, cookie: { refresh_token } }) => {
-                    const { data, error } = await supabase.auth.refreshSession({
-                        refresh_token: refresh_token.value || ''
-                    })
+                '/me',
+                async ({ bearer, jwt }) => {
+                    if (!bearer) {
+                        return { error: 'No token provided' }
+                    }
 
-                    if (error) return error
+                    try {
+                        const payload = await jwt.verify(bearer)
+                        if (!payload) {
+                            return { error: 'Invalid token' }
+                        }
 
-                    setCookie('refresh_token', data.session!.refresh_token)
+                        const user = await prisma.user.findUnique({
+                            where: {
+                                id: payload.id
+                            }
+                        })
 
-                    return data.user
+                        if (!user) {
+                            return { error: 'User not found' }
+                        }
+
+                        const { password, ...userWithoutPassword } = user
+                        return userWithoutPassword
+                    } catch (error) {
+                        return { error: 'Authentication failed' }
+                    }
                 }
             )
     )
