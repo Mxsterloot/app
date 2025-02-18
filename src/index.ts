@@ -4,13 +4,11 @@ import { cors } from "@elysiajs/cors";
 import { routes } from "./routes";
 import { bearer } from "@elysiajs/bearer";
 import { jwt } from "@elysiajs/jwt";
-import { auth } from "./modules/auth";
 
-const app = new Elysia()
+const app = new Elysia({ prefix: "/api" })
   .use(swagger())
   .use(cors())
   .use(bearer())
-  .use(auth)
   .use(
     jwt({
       name: "jwt",

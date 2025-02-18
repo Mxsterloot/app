@@ -33,9 +33,9 @@ const handleError = (error: any) => {
   return { error: "Internal server error" };
 };
 
-export const userRoutes = new Elysia()
+export const userRoutes = new Elysia({ prefix: "/users" })
   .use(swagger())
-  .get("/api/users", 
+  .get("/",
     async () => {
       try {
         const users = await db.user.findMany({
@@ -45,13 +45,15 @@ export const userRoutes = new Elysia()
             email: true,
             createdAt: true,
             updatedAt: true
-          }
+          },
+          skip: 0,
+          take: 10
         });
         return { success: true, data: users };
       } catch (error) {
         return handleError(error);
       }
-    }, 
+    },
     {
       detail: {
         summary: "Get all users",
@@ -59,7 +61,7 @@ export const userRoutes = new Elysia()
       }
     }
   )
-  .post("/api/users", 
+  .post("/",
     async ({ body }) => {
       try {
         const user = await db.user.create({
@@ -76,7 +78,7 @@ export const userRoutes = new Elysia()
       } catch (error) {
         return handleError(error);
       }
-    }, 
+    },
     {
       body: userSchema,
       detail: {
@@ -85,7 +87,7 @@ export const userRoutes = new Elysia()
       }
     }
   )
-  .get("/api/users/:id", 
+  .get("/:id",
     async ({ params: { id } }) => {
       try {
         const user = await db.user.findUnique({
@@ -103,7 +105,7 @@ export const userRoutes = new Elysia()
       } catch (error) {
         return handleError(error);
       }
-    }, 
+    },
     {
       params: idParamSchema,
       detail: {
@@ -112,7 +114,7 @@ export const userRoutes = new Elysia()
       }
     }
   )
-  .put("/api/users/:id", 
+  .put("/:id",
     async ({ params: { id }, body }) => {
       try {
         const user = await db.user.update({
@@ -130,7 +132,7 @@ export const userRoutes = new Elysia()
       } catch (error) {
         return handleError(error);
       }
-    }, 
+    },
     {
       params: idParamSchema,
       body: userUpdateSchema,
@@ -140,20 +142,20 @@ export const userRoutes = new Elysia()
       }
     }
   )
-  .delete("/api/users/:id", 
+  .delete("/:id",
     async ({ params: { id } }) => {
       try {
         await db.user.delete({
           where: { id: parseInt(id) }
         });
-        return { 
-          success: true, 
-          message: "User deleted successfully" 
+        return {
+          success: true,
+          message: "User deleted successfully"
         };
       } catch (error) {
         return handleError(error);
       }
-    }, 
+    },
     {
       params: idParamSchema,
       detail: {
@@ -164,11 +166,11 @@ export const userRoutes = new Elysia()
   );
 
 export const helloRoutes = new Elysia()
-  .get("/api/hello", 
+  .get("/hello",
     async () => {
-      return { 
-        success: true, 
-        message: "Hello World" 
+      return {
+        success: true,
+        message: "Hello World"
       };
     }
   );
