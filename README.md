@@ -12,6 +12,18 @@ To start the development server run:
 bun run dev
 ```
 
+## Build
+To build the project run:
+```bash
+bun build \
+	--compile \
+	--minify-whitespace \
+	--minify-syntax \
+	--target bun \
+	--outfile server \
+	./src/index.ts
+```
+
 ## Postgres Docker command
 ```docker run \
   -p 5432:5432 \

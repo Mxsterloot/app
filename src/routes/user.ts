@@ -1,25 +1,8 @@
 import { Elysia, t } from "elysia";
 import { PrismaClient } from "@prisma/client";
 import { swagger } from "@elysiajs/swagger";
-
+import { paginationSchema, userSchema, userUpdateSchema, idParamSchema } from "../types";
 const db = new PrismaClient();
-
-// Define reusable schemas
-const userSchema = t.Object({
-  name: t.String(),
-  email: t.String(),
-  password: t.String()
-});
-
-const userUpdateSchema = t.Object({
-  name: t.Optional(t.String()),
-  email: t.Optional(t.String()),
-  password: t.Optional(t.String())
-});
-
-const idParamSchema = t.Object({
-  id: t.String()
-});
 
 // Error handling utility
 const handleError = (error: any) => {
@@ -36,27 +19,56 @@ const handleError = (error: any) => {
 export const userRoutes = new Elysia({ prefix: "/users" })
   .use(swagger())
   .get("/",
-    async () => {
+    async ({ query }) => {
       try {
-        const users = await db.user.findMany({
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            createdAt: true,
-            updatedAt: true
-          },
-          skip: 0,
-          take: 10
-        });
-        return { success: true, data: users };
+        const page = Number(query?.page) || 1;
+        const limit = Number(query?.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        const [users, total] = await Promise.all([
+          db.user.findMany({
+            where: {
+              OR: query?.search ? [
+                { name: { contains: query.search, mode: "insensitive" } },
+                { email: { contains: query.search, mode: "insensitive" } }
+              ] : undefined
+            },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              createdAt: true,
+              updatedAt: true
+            },
+            skip,
+            take: limit
+          }),
+          db.user.count({ where: {
+            OR: query?.search ? [
+              { name: { contains: query.search, mode: "insensitive" } },
+              { email: { contains: query.search, mode: "insensitive" } }
+            ] : undefined
+          }})
+        ]);
+
+        return {
+          success: true,
+          data: users,
+          pagination: {
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit)
+          }
+        };
       } catch (error) {
         return handleError(error);
       }
     },
     {
+      query: paginationSchema,
       detail: {
-        summary: "Get all users",
+        summary: "Get all users with search and pagination",
         tags: ["Users"]
       }
     }
